@@ -86,8 +86,7 @@ textarea{resize:vertical;min-height:80px}
 .score-label.medium{color:var(--orange)}
 .score-label.high{color:var(--red)}
 .score-desc{font-size:11px;color:var(--muted);margin-top:4px}
-.share-btn{margin-top:12px;background:transparent;border:1px solid #1d9bf0;color:#1d9bf0;font-family:var(--mono);font-size:11px;padding:6px 14px;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px}
-.share-btn:hover{background:rgba(29,155,240,0.1)}
+.share-btn{margin-top:12px;background:transparent;border:1px solid #1d9bf0;color:#1d9bf0;font-family:var(--mono);font-size:11px;padding:6px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .feed-section{margin-bottom:24px}
 .feed-card{border:1px solid var(--border);padding:12px 14px;background:var(--surface);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .feed-card.clickable{cursor:pointer;transition:border-color 0.2s}
@@ -104,6 +103,13 @@ textarea{resize:vertical;min-height:80px}
 .watch-status{font-size:11px;margin-top:4px}
 .watch-status.flagged{color:var(--red)}
 .watch-status.clean{color:var(--green)}
+.cat-stats{margin-bottom:24px}
+.cat-row{margin-bottom:10px}
+.cat-header{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px}
+.cat-name{font-family:var(--display);font-weight:600;letter-spacing:1px;text-transform:uppercase}
+.cat-count{color:var(--muted)}
+.cat-bar-bg{background:var(--border);height:6px;width:100%}
+.cat-bar-fill{height:6px;background:var(--red);transition:width 1s ease}
 </style>
 </head>
 <body>
@@ -120,6 +126,10 @@ textarea{resize:vertical;min-height:80px}
 <div class="stats-bar">
 <div class="stat"><div class="stat-value" id="statReports">—</div><div class="stat-label">Total Reports</div></div>
 <div class="stat"><div class="stat-value" id="statFlagged">—</div><div class="stat-label">Addresses Flagged</div></div>
+</div>
+<div class="cat-stats">
+<div class="section-title">Category Breakdown</div>
+<div id="catStats"><div class="feed-loading">Loading...</div></div>
 </div>
 <div class="feed-section">
 <div class="section-title">Recent Reports</div>
@@ -158,7 +168,7 @@ textarea{resize:vertical;min-height:80px}
 <div class="panel" id="panel-about">
 <div class="section-title">What is FraudWatch</div>
 <p style="font-size:13px;line-height:1.8;color:#aaa;margin-bottom:16px;">Community-driven on-chain scam registry on Arc Testnet. Flag wallets, submit evidence, upvote reports. All permanent on-chain.</p>
-<p style="font-size:13px;line-height:1.8;color:#aaa;margin-bottom:20px;">Scam Score is calculated from report count and community upvotes. Watchlist alerts you when monitored addresses get flagged.</p>
+<p style="font-size:13px;line-height:1.8;color:#aaa;margin-bottom:20px;">Scam Score is calculated from report count and upvotes. Watchlist monitors addresses for new flags. Category Stats shows what fraud types dominate Arc.</p>
 <div class="section-title" style="margin-top:8px;">Contract Details</div>
 <div style="font-size:11px;color:var(--muted);line-height:2;">
 <div>Network: <span style="color:var(--text)">Arc Testnet (Chain 5042002)</span></div>
@@ -186,15 +196,40 @@ function getScoreClass(s){return s>=70?"high":s>=40?"medium":"low"}
 function getScoreLabel(s){return s>=70?"HIGH RISK":s>=40?"MODERATE RISK":"LOW RISK"}
 function getWatchlist(){try{return JSON.parse(localStorage.getItem(WATCHLIST_KEY)||"[]")}catch{return[]}}
 function saveWatchlist(l){localStorage.setItem(WATCHLIST_KEY,JSON.stringify(l))}
-window.addEventListener("load",async()=>{await loadStats();await loadRecentFeed();await renderWatchlist()});
+window.addEventListener("load",async()=>{
+  await loadStats();
+  await loadRecentFeed();
+  renderWatchlist();
+});
 async function loadStats(){
   try{
     const count=await readContract.reportCount();
-    document.getElementById("statReports").textContent=count.toString();
+    const total=Number(count);
+    document.getElementById("statReports").textContent=total;
     let flagged=new Set();
-    for(let i=0;i<Number(count);i++){const r=await readContract.getReport(i);if(r[6])flagged.add(r[1])}
+    let cats=[0,0,0,0,0];
+    for(let i=0;i<total;i++){
+      const r=await readContract.getReport(i);
+      if(r[6]){flagged.add(r[1]);cats[Number(r[3])]++;}
+    }
     document.getElementById("statFlagged").textContent=flagged.size;
-  }catch(e){}
+    renderCatStats(cats,total);
+  }catch(e){document.getElementById("catStats").innerHTML='<div class="feed-loading">Could not load.</div>'}
+}
+function renderCatStats(cats,total){
+  const div=document.getElementById("catStats");
+  if(total===0){div.innerHTML='<div class="feed-loading">No reports yet.</div>';return}
+  const max=Math.max(...cats,1);
+  let html="";
+  CATEGORIES.forEach((name,i)=>{
+    const pct=Math.round((cats[i]/max)*100);
+    const share=total>0?Math.round((cats[i]/total)*100):0;
+    html+=`<div class="cat-row">
+      <div class="cat-header"><span class="cat-name">${name}</span><span class="cat-count">${cats[i]} report${cats[i]!==1?"s":""} · ${share}%</span></div>
+      <div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  });
+  div.innerHTML=html;
 }
 async function loadRecentFeed(){
   const feedDiv=document.getElementById("recentFeed");
@@ -324,9 +359,7 @@ async function renderWatchlist(){
   for(let addr of list){
     try{
       const[flagged,count]=await readContract.isFlagged(addr);
-      const statusHtml=flagged
-        ?`<div class="watch-status flagged">⚠ FLAGGED — ${count} report(s)</div>`
-        :`<div class="watch-status clean">✓ Clean</div>`;
+      const statusHtml=flagged?`<div class="watch-status flagged">⚠ FLAGGED — ${count} report(s)</div>`:`<div class="watch-status clean">✓ Clean</div>`;
       html+=`<div class="feed-card"><div style="flex:1;cursor:pointer" onclick="lookupFromFeed('${addr}')"><div class="feed-addr">${shortAddr(addr)}</div>${statusHtml}</div><button class="remove-btn" onclick="removeFromWatchlist('${addr}')">✕</button></div>`;
     }catch{html+=`<div class="feed-card"><div style="flex:1"><div class="feed-addr">${shortAddr(addr)}</div><div class="watch-status" style="color:var(--muted)">Could not check</div></div><button class="remove-btn" onclick="removeFromWatchlist('${addr}')">✕</button></div>`}
   }
