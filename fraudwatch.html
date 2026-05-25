@@ -4,11 +4,144 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FraudWatch — Arc Testnet</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0a;--surface:#111;--border:#1e1e1e;--red:#ff2d2d;--red-dim:#7a0000;--green:#00ff88;--yellow:#ffd700;--text:#e8e8e8;--muted:#555;--mono:'Share Tech Mono',monospace;--display:'Barlow Condensed',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);pointer-events:none;z-index:999}
+header{border-bottom:1px solid var(--border);padding:24px 20px 20px;position:relative}
+header::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red),transparent);animation:scanH 3s ease-in-out infinite}
+@keyframes scanH{0%,100%{opacity:0.3}50%{opacity:1}}
+.logo{font-family:var(--display);font-size:42px;font-weight:800;color:var(--red);text-shadow:0 0 30px rgba(255,45,45,0.4)}
+.logo span{color:var(--text)}
+.tagline{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:3px;text-transform:uppercase}
+.network-badge{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:#0d1f0d;border:1px solid #1a3a1a;padding:4px 10px;font-size:11px;color:var(--green)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.wallet-bar{margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wallet-status{font-size:11px;color:var(--muted)}
+.wallet-status.connected{color:var(--green)}
+main{max-width:680px;margin:0 auto;padding:28px 16px 60px}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid var(--border);margin-bottom:24px}
+.tab{padding:12px 8px;font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:1px;text-transform:uppercase;background:transparent;border:none;color:var(--muted);cursor:pointer;transition:all 0.2s;border-right:1px solid var(--border)}
+.tab:last-child{border-right:none}
+.tab.active{background:var(--red);color:#fff}
+.tab:not(.active):hover{color:var(--text);background:var(--surface)}
+.panel{display:none}
+.panel.active{display:block;animation:fadeIn 0.3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.field{margin-bottom:16px}
+label{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+input,select,textarea{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:13px;padding:12px 14px;outline:none;transition:border-color 0.2s}
+input:focus,select:focus,textarea:focus{border-color:var(--red)}
+select option{background:#111}
+textarea{resize:vertical;min-height:80px}
+.btn{font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:2px;text-transform:uppercase;padding:14px 28px;border:none;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:var(--red);color:#fff}
+.btn-primary:hover{background:#ff5555;transform:translateY(-1px)}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.btn-connect{background:transparent;color:var(--green);border:1px solid var(--green);font-family:var(--mono);font-size:11px;padding:6px 14px;cursor:pointer;letter-spacing:1px;transition:all 0.2s}
+.btn-connect:hover{background:rgba(0,255,136,0.1)}
+.result-box{border:1px solid var(--border);padding:20px;margin-top:20px;background:var(--surface);animation:fadeIn 0.3s ease}
+.result-box.danger{border-color:var(--red);background:rgba(255,45,45,0.04)}
+.result-box.safe{border-color:var(--green);background:rgba(0,255,136,0.04)}
+.result-label{font-family:var(--display);font-size:22px;font-weight:800}
+.result-label.danger{color:var(--red)}
+.result-label.safe{color:var(--green)}
+.result-meta{font-size:11px;color:var(--muted);margin-top:4px}
+.report-list{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+.report-card{border:1px solid var(--border);padding:14px;background:#0d0d0d;position:relative}
+.report-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red)}
+.report-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.category-badge{font-family:var(--display);font-size:11px;font-weight:600;letter-spacing:2px;padding:2px 8px;background:var(--red-dim);color:var(--red);text-transform:uppercase}
+.upvote-count{font-size:11px;color:var(--yellow)}
+.report-evidence{font-size:11px;color:var(--muted);margin-top:8px;word-break:break-all}
+.report-time{font-size:10px;color:#333;margin-top:6px}
+.upvote-btn{margin-top:10px;background:transparent;border:1px solid #2a2a2a;color:var(--yellow);font-family:var(--mono);font-size:11px;padding:4px 12px;cursor:pointer;transition:all 0.2s}
+.upvote-btn:hover{border-color:var(--yellow)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border);padding:12px 20px;font-size:12px;z-index:1000;transition:transform 0.3s ease;max-width:320px;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+.toast.info{border-color:var(--muted);color:var(--text)}
+.stats-bar{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:24px}
+.stat{background:var(--surface);padding:14px 16px}
+.stat-value{font-family:var(--display);font-size:28px;font-weight:800;color:var(--red);line-height:1}
+.stat-label{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tx-link{font-size:10px;color:var(--muted);margin-top:8px;word-break:break-all}
+.tx-link a{color:var(--yellow);text-decoration:none}
+.section-title{font-family:var(--display);font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px}
+</style>
 </head>
-<body style="background:#0a0a0a;color:#e8e8e8;font-family:monospace;text-align:center;padding:40px;">
-<h1 style="color:#ff2d2d;font-size:48px;">FRAUDWATCH</h1>
-<p>On-chain scam registry · Arc Testnet</p>
-<p>Contract: 0x7fda12A4381BF10920624c07f1420323D619E793</p>
-<p style="color:#00ff88;">Loading full dApp...</p>
+<body>
+<header>
+<div class="logo">FRAUD<span>WATCH</span></div>
+<div class="tagline">On-chain scam registry · Arc Testnet</div>
+<div class="network-badge"><div class="dot"></div>Arc Testnet · Chain 5042002</div>
+<div class="wallet-bar">
+<span class="wallet-status" id="walletStatus">Not connected</span>
+<button class="btn-connect" id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+</div>
+</header>
+<main>
+<div class="stats-bar">
+<div class="stat"><div class="stat-value" id="statReports">—</div><div class="stat-label">Total Reports</div></div>
+<div class="stat"><div class="stat-value">LIVE</div><div class="stat-label">Contract Status</div></div>
+</div>
+<div class="tabs">
+<button class="tab active" onclick="switchTab('check',this)">Check Address</button>
+<button class="tab" onclick="switchTab('report',this)">Report Scammer</button>
+<button class="tab" onclick="switchTab('about',this)">About</button>
+</div>
+<div class="panel active" id="panel-check">
+<div class="section-title">Lookup wallet address</div>
+<div class="field"><label>Wallet Address</label><input type="text" id="checkAddress" placeholder="0x..."/></div>
+<button class="btn btn-primary" onclick="checkAddress()">Search</button>
+<div id="checkResult"></div>
+</div>
+<div class="panel" id="panel-report">
+<div class="section-title">Submit a report</div>
+<div class="field"><label>Accused Wallet Address</label><input type="text" id="reportAddress" placeholder="0x..."/></div>
+<div class="field"><label>Category</label><select id="reportCategory"><option value="0">Scam</option><option value="1">Phishing</option><option value="2">Rug Pull</option><option value="3">Theft</option><option value="4">Fraud</option></select></div>
+<div class="field"><label>Evidence (IPFS hash, URL, or description)</label><textarea id="reportEvidence" placeholder="ipfs://Qm... or describe what happened"></textarea></div>
+<button class="btn btn-primary" id="reportBtn" onclick="submitReport()">Submit Report</button>
+<div id="reportResult"></div>
+</div>
+<div class="panel" id="panel-about">
+<div class="section-title">What is FraudWatch</div>
+<p style="font-size:13px;line-height:1.8;color:#aaa;margin-bottom:16px;">FraudWatch is a community-driven, on-chain scam registry deployed on Arc Testnet. Anyone can flag a wallet address involved in fraud, phishing, rug pulls, theft, or scams.</p>
+<div class="section-title" style="margin-top:8px;">Contract Details</div>
+<div style="font-size:11px;color:var(--muted);line-height:2;">
+<div>Network: <span style="color:var(--text)">Arc Testnet (Chain 5042002)</span></div>
+<div>Contract: <span style="color:var(--yellow);word-break:break-all">0x7fda12A4381BF10920624c07f1420323D619E793</span></div>
+<div>Built by: <span style="color:var(--text)">Kebs · from a Redmi on Termux</span></div>
+</div>
+</div>
+</main>
+<div class="toast" id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<script>
+const CONTRACT_ADDRESS="0x7fda12A4381BF10920624c07f1420323D619E793";
+const RPC="https://rpc.testnet.arc.network";
+const CHAIN_ID=5042002;
+const EXPLORER="https://explorer.testnet.arc.network";
+const ABI=["function report(address,string,uint8) external returns(uint256)","function upvote(uint256) external","function getReport(uint256) external view returns(tuple(address,address,string,uint8,uint256,uint256,bool))","function getReportsByAccused(address) external view returns(uint256[])","function isFlagged(address) external view returns(bool,uint256)","function reportCount() external view returns(uint256)"];
+const CATEGORIES=["SCAM","PHISHING","RUG PULL","THEFT","FRAUD"];
+let provider,signer,contract;
+const roProvider=new ethers.JsonRpcProvider(RPC);
+const readContract=new ethers.Contract(CONTRACT_ADDRESS,ABI,roProvider);
+window.addEventListener('load',loadStats);
+async function loadStats(){try{const c=await readContract.reportCount();document.getElementById('statReports').textContent=c.toString()}catch(e){}}
+async function connectWallet(){if(!window.ethereum){showToast("No wallet found","error");return}try{await window.ethereum.request({method:'eth_requestAccounts'});try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x'+CHAIN_ID.toString(16)}]})}catch(e){if(e.code===4902)await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:'0x'+CHAIN_ID.toString(16),chainName:'Arc Testnet',nativeCurrency:{name:'USDC',symbol:'USDC',decimals:6},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]})}provider=new ethers.BrowserProvider(window.ethereum);signer=await provider.getSigner();contract=new ethers.Contract(CONTRACT_ADDRESS,ABI,signer);const addr=await signer.getAddress();document.getElementById('walletStatus').textContent=addr.slice(0,6)+'...'+addr.slice(-4);document.getElementById('walletStatus').className='wallet-status connected';document.getElementById('connectBtn').textContent='Connected';showToast("Connected","success")}catch(e){showToast("Failed: "+e.message,"error")}}
+function switchTab(name,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+name).classList.add('active');btn.classList.add('active')}
+async function checkAddress(){const addr=document.getElementById('checkAddress').value.trim();const resultDiv=document.getElementById('checkResult');if(!ethers.isAddress(addr)){showToast("Invalid address","error");return}resultDiv.innerHTML='<div style="color:var(--muted);font-size:12px;margin-top:16px;">Checking...</div>';try{const[flagged,count]=await readContract.isFlagged(addr);if(!flagged){resultDiv.innerHTML='<div class="result-box safe"><div class="result-label safe">✓ CLEAN</div><div class="result-meta">No active reports found.</div></div>';return}const ids=await readContract.getReportsByAccused(addr);let html='';for(let id of ids){const r=await readContract.getReport(id);if(!r[6])continue;const date=new Date(Number(r[4])*1000).toLocaleDateString();html+=`<div class="report-card"><div class="report-card-header"><span class="category-badge">${CATEGORIES[Number(r[3])]}</span><span class="upvote-count">▲ ${r[5]} upvotes</span></div><div class="report-evidence">Evidence: ${r[2]}</div><div class="report-time">${date}</div><button class="upvote-btn" onclick="upvoteReport(${id})">▲ Upvote</button></div>`}resultDiv.innerHTML=`<div class="result-box danger"><div class="result-label danger">⚠ FLAGGED</div><div class="result-meta">${count} active report(s)</div></div><div class="report-list">${html}</div>`}catch(e){resultDiv.innerHTML=`<div style="color:var(--red);font-size:12px;margin-top:16px;">Error: ${e.message}</div>`}}
+async function submitReport(){if(!contract){showToast("Connect wallet first","error");return}const addr=document.getElementById('reportAddress').value.trim();const evidence=document.getElementById('reportEvidence').value.trim();const category=parseInt(document.getElementById('reportCategory').value);const resultDiv=document.getElementById('reportResult');const btn=document.getElementById('reportBtn');if(!ethers.isAddress(addr)){showToast("Invalid address","error");return}if(!evidence){showToast("Evidence required","error");return}btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Submitting...';try{const tx=await contract.report(addr,evidence,category);showToast("Waiting for confirmation...","info");await tx.wait();btn.disabled=false;btn.innerHTML='Submit Report';resultDiv.innerHTML=`<div class="result-box safe" style="margin-top:16px;"><div class="result-label safe">✓ REPORTED</div><div class="result-meta">Submitted on-chain.</div><div class="tx-link">TX: <a href="${EXPLORER}/tx/${tx.hash}" target="_blank">${tx.hash}</a></div></div>`;loadStats();showToast("Report submitted!","success")}catch(e){btn.disabled=false;btn.innerHTML='Submit Report';showToast("Error: "+e.message,"error")}}
+async function upvoteReport(id){if(!contract){showToast("Connect wallet to upvote","error");return}try{const tx=await contract.upvote(id);showToast("Upvoting...","info");await tx.wait();showToast("Upvoted!","success");checkAddress()}catch(e){showToast(e.message.includes('Already')?'Already upvoted':'Error','error')}}
+let toastTimer;
+function showToast(msg,type='info'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500)}
+</script>
 </body>
 </html>
