@@ -23,8 +23,8 @@ header::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;back
 .wallet-status{font-size:11px;color:var(--muted)}
 .wallet-status.connected{color:var(--green)}
 main{max-width:680px;margin:0 auto;padding:28px 16px 60px}
-.tabs{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border:1px solid var(--border);margin-bottom:24px}
-.tab{padding:10px 4px;font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:1px;text-transform:uppercase;background:transparent;border:none;color:var(--muted);cursor:pointer;transition:all 0.2s;border-right:1px solid var(--border)}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;border:1px solid var(--border);margin-bottom:24px}
+.tab{padding:10px 2px;font-family:var(--display);font-weight:600;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;background:transparent;border:none;color:var(--muted);cursor:pointer;transition:all 0.2s;border-right:1px solid var(--border)}
 .tab:last-child{border-right:none}
 .tab.active{background:var(--red);color:#fff}
 .tab:not(.active):hover{color:var(--text);background:var(--surface)}
@@ -110,6 +110,15 @@ textarea{resize:vertical;min-height:80px}
 .cat-count{color:var(--muted)}
 .cat-bar-bg{background:var(--border);height:6px;width:100%}
 .cat-bar-fill{height:6px;background:var(--red);transition:width 1s ease}
+.rep-card{border:1px solid var(--border);padding:14px;background:var(--surface);margin-bottom:8px;display:flex;align-items:center;gap:14px}
+.rep-rank{font-family:var(--display);font-size:28px;font-weight:800;color:var(--border);width:32px;flex-shrink:0;text-align:center}
+.rep-rank.gold{color:#ffd700}
+.rep-rank.silver{color:#c0c0c0}
+.rep-rank.bronze{color:#cd7f32}
+.rep-info{flex:1;min-width:0}
+.rep-addr{font-size:12px;color:var(--text);word-break:break-all}
+.rep-stats{font-size:10px;color:var(--muted);margin-top:4px}
+.rep-score{font-family:var(--display);font-size:20px;font-weight:800;color:var(--green);flex-shrink:0}
 </style>
 </head>
 <body>
@@ -139,6 +148,7 @@ textarea{resize:vertical;min-height:80px}
 <button class="tab active" onclick="switchTab('check',this)">Check</button>
 <button class="tab" onclick="switchTab('report',this)">Report</button>
 <button class="tab" onclick="switchTab('watchlist',this)">Watchlist</button>
+<button class="tab" onclick="switchTab('leaderboard',this)">Leaders</button>
 <button class="tab" onclick="switchTab('about',this)">About</button>
 </div>
 <div class="panel active" id="panel-check">
@@ -165,10 +175,14 @@ textarea{resize:vertical;min-height:80px}
 </div>
 <div id="watchlistItems"><div class="feed-loading">No addresses watched yet.</div></div>
 </div>
+<div class="panel" id="panel-leaderboard">
+<div class="section-title">Top Reporters</div>
+<div id="leaderboardItems"><div class="feed-loading">Loading...</div></div>
+</div>
 <div class="panel" id="panel-about">
 <div class="section-title">What is FraudWatch</div>
 <p style="font-size:13px;line-height:1.8;color:#aaa;margin-bottom:16px;">Community-driven on-chain scam registry on Arc Testnet. Flag wallets, submit evidence, upvote reports. All permanent on-chain.</p>
-<p style="font-size:13px;line-height:1.8;color:#aaa;margin-bottom:20px;">Scam Score is calculated from report count and upvotes. Watchlist monitors addresses for new flags. Category Stats shows what fraud types dominate Arc.</p>
+<p style="font-size:13px;line-height:1.8;color:#aaa;margin-bottom:20px;">Scam Score is calculated from reports and upvotes. Watchlist monitors addresses. Category Stats shows fraud patterns. Leaderboard ranks top community reporters.</p>
 <div class="section-title" style="margin-top:8px;">Contract Details</div>
 <div style="font-size:11px;color:var(--muted);line-height:2;">
 <div>Network: <span style="color:var(--text)">Arc Testnet (Chain 5042002)</span></div>
@@ -188,6 +202,7 @@ const ABI=["function report(address,string,uint8) external returns(uint256)","fu
 const CATEGORIES=["SCAM","PHISHING","RUG PULL","THEFT","FRAUD"];
 const WATCHLIST_KEY="fraudwatch_watchlist";
 let provider,signer,contract;
+let allReports=[];
 const roProvider=new ethers.JsonRpcProvider(RPC);
 const readContract=new ethers.Contract(CONTRACT_ADDRESS,ABI,roProvider);
 function shortAddr(addr){return addr.slice(0,6)+"..."+addr.slice(-4)}
@@ -197,24 +212,26 @@ function getScoreLabel(s){return s>=70?"HIGH RISK":s>=40?"MODERATE RISK":"LOW RI
 function getWatchlist(){try{return JSON.parse(localStorage.getItem(WATCHLIST_KEY)||"[]")}catch{return[]}}
 function saveWatchlist(l){localStorage.setItem(WATCHLIST_KEY,JSON.stringify(l))}
 window.addEventListener("load",async()=>{
-  await loadStats();
-  await loadRecentFeed();
-  renderWatchlist();
+  await loadAllData();
 });
-async function loadStats(){
+async function loadAllData(){
   try{
     const count=await readContract.reportCount();
     const total=Number(count);
     document.getElementById("statReports").textContent=total;
     let flagged=new Set();
     let cats=[0,0,0,0,0];
+    allReports=[];
     for(let i=0;i<total;i++){
       const r=await readContract.getReport(i);
+      allReports.push({id:i,reporter:r[0],accused:r[1],evidence:r[2],category:Number(r[3]),timestamp:Number(r[4]),upvotes:Number(r[5]),active:r[6]});
       if(r[6]){flagged.add(r[1]);cats[Number(r[3])]++;}
     }
     document.getElementById("statFlagged").textContent=flagged.size;
     renderCatStats(cats,total);
-  }catch(e){document.getElementById("catStats").innerHTML='<div class="feed-loading">Could not load.</div>'}
+    renderRecentFeed();
+    renderWatchlist();
+  }catch(e){console.error(e)}
 }
 function renderCatStats(cats,total){
   const div=document.getElementById("catStats");
@@ -224,28 +241,52 @@ function renderCatStats(cats,total){
   CATEGORIES.forEach((name,i)=>{
     const pct=Math.round((cats[i]/max)*100);
     const share=total>0?Math.round((cats[i]/total)*100):0;
-    html+=`<div class="cat-row">
-      <div class="cat-header"><span class="cat-name">${name}</span><span class="cat-count">${cats[i]} report${cats[i]!==1?"s":""} · ${share}%</span></div>
-      <div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${pct}%"></div></div>
-    </div>`;
+    html+=`<div class="cat-row"><div class="cat-header"><span class="cat-name">${name}</span><span class="cat-count">${cats[i]} report${cats[i]!==1?"s":""} · ${share}%</span></div><div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${pct}%"></div></div></div>`;
   });
   div.innerHTML=html;
 }
-async function loadRecentFeed(){
+function renderRecentFeed(){
   const feedDiv=document.getElementById("recentFeed");
-  try{
-    const count=await readContract.reportCount();
-    const total=Number(count);
-    if(total===0){feedDiv.innerHTML='<div class="feed-loading">No reports yet.</div>';return}
-    let html="";
-    for(let i=total-1;i>=Math.max(0,total-5);i--){
-      const r=await readContract.getReport(i);
-      if(!r[6])continue;
-      const date=new Date(Number(r[4])*1000).toLocaleDateString();
-      html+=`<div class="feed-card clickable" onclick="lookupFromFeed('${r[1]}')"><div class="feed-addr">${shortAddr(r[1])}</div><div class="feed-meta"><span class="feed-badge">${CATEGORIES[Number(r[3])]}</span><span class="feed-time">${date}</span></div></div>`;
-    }
-    feedDiv.innerHTML=html||'<div class="feed-loading">No active reports.</div>';
-  }catch(e){feedDiv.innerHTML='<div class="feed-loading">Could not load.</div>'}
+  const active=allReports.filter(r=>r.active);
+  if(active.length===0){feedDiv.innerHTML='<div class="feed-loading">No reports yet.</div>';return}
+  const recent=active.slice(-5).reverse();
+  let html="";
+  recent.forEach(r=>{
+    const date=new Date(r.timestamp*1000).toLocaleDateString();
+    html+=`<div class="feed-card clickable" onclick="lookupFromFeed('${r.accused}')"><div class="feed-addr">${shortAddr(r.accused)}</div><div class="feed-meta"><span class="feed-badge">${CATEGORIES[r.category]}</span><span class="feed-time">${date}</span></div></div>`;
+  });
+  feedDiv.innerHTML=html;
+}
+function renderLeaderboard(){
+  const div=document.getElementById("leaderboardItems");
+  if(allReports.length===0){div.innerHTML='<div class="feed-loading">No reports yet.</div>';return}
+  const reporters={};
+  allReports.filter(r=>r.active).forEach(r=>{
+    if(!reporters[r.reporter])reporters[r.reporter]={reports:0,upvotes:0};
+    reporters[r.reporter].reports++;
+    reporters[r.reporter].upvotes+=r.upvotes;
+  });
+  const sorted=Object.entries(reporters).sort((a,b)=>{
+    const scoreA=a[1].reports*10+a[1].upvotes*5;
+    const scoreB=b[1].reports*10+b[1].upvotes*5;
+    return scoreB-scoreA;
+  }).slice(0,10);
+  if(sorted.length===0){div.innerHTML='<div class="feed-loading">No reporters yet.</div>';return}
+  let html="";
+  sorted.forEach(([addr,data],i)=>{
+    const repScore=data.reports*10+data.upvotes*5;
+    const rankClass=i===0?"gold":i===1?"silver":i===2?"bronze":"";
+    const medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":`#${i+1}`;
+    html+=`<div class="rep-card">
+      <div class="rep-rank ${rankClass}">${medal}</div>
+      <div class="rep-info">
+        <div class="rep-addr">${shortAddr(addr)}</div>
+        <div class="rep-stats">${data.reports} report${data.reports!==1?"s":""} · ${data.upvotes} upvote${data.upvotes!==1?"s":""} received</div>
+      </div>
+      <div class="rep-score">${repScore}</div>
+    </div>`;
+  });
+  div.innerHTML=html;
 }
 function lookupFromFeed(addr){
   document.getElementById("checkAddress").value=addr;
@@ -274,6 +315,7 @@ function switchTab(name,btn){
   document.getElementById("panel-"+name).classList.add("active");
   btn.classList.add("active");
   if(name==="watchlist")renderWatchlist();
+  if(name==="leaderboard")renderLeaderboard();
 }
 async function checkAddress(){
   const addr=document.getElementById("checkAddress").value.trim();
@@ -321,7 +363,7 @@ async function submitReport(){
     await tx.wait();
     btn.disabled=false;btn.innerHTML="Submit Report";
     resultDiv.innerHTML=`<div class="result-box safe" style="margin-top:16px;"><div class="result-label safe">✓ REPORTED</div><div class="result-meta">Submitted on-chain.</div><div class="tx-link">TX: <a href="${EXPLORER}/tx/${tx.hash}" target="_blank">${tx.hash}</a></div></div>`;
-    loadStats();loadRecentFeed();
+    await loadAllData();
     showToast("Report submitted!","success");
   }catch(e){btn.disabled=false;btn.innerHTML="Submit Report";showToast("Error: "+e.message,"error")}
 }
