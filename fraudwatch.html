@@ -6,7 +6,7 @@
 <title>FraudWatch — Arc Testnet</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0a0a0a;--surface:#111;--border:#1e1e1e;--red:#ff2d2d;--red-dim:#7a0000;--green:#00ff88;--yellow:#ffd700;--text:#e8e8e8;--muted:#555;--mono:'Share Tech Mono',monospace;--display:'Barlow Condensed',sans-serif}
+:root{--bg:#0a0a0a;--surface:#111;--border:#1e1e1e;--red:#ff2d2d;--red-dim:#7a0000;--green:#00ff88;--yellow:#ffd700;--orange:#ff8c00;--text:#e8e8e8;--muted:#555;--mono:'Share Tech Mono',monospace;--display:'Barlow Condensed',sans-serif}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);pointer-events:none;z-index:999}
@@ -74,6 +74,28 @@ textarea{resize:vertical;min-height:80px}
 .tx-link{font-size:10px;color:var(--muted);margin-top:8px;word-break:break-all}
 .tx-link a{color:var(--yellow);text-decoration:none}
 .section-title{font-family:var(--display);font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px}
+.scam-score{display:flex;align-items:center;gap:16px;margin-top:16px;padding:16px;background:#0d0d0d;border:1px solid var(--border)}
+.score-circle{width:70px;height:70px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:24px;font-weight:800;flex-shrink:0;border:3px solid}
+.score-circle.low{border-color:var(--green);color:var(--green)}
+.score-circle.medium{border-color:var(--orange);color:var(--orange)}
+.score-circle.high{border-color:var(--red);color:var(--red);animation:scorePulse 1s ease-in-out infinite}
+@keyframes scorePulse{0%,100%{box-shadow:0 0 0 0 rgba(255,45,45,0.4)}50%{box-shadow:0 0 0 8px rgba(255,45,45,0)}}
+.score-info{flex:1}
+.score-label{font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:1px}
+.score-label.low{color:var(--green)}
+.score-label.medium{color:var(--orange)}
+.score-label.high{color:var(--red)}
+.score-desc{font-size:11px;color:var(--muted);margin-top:4px}
+.share-btn{margin-top:12px;background:transparent;border:1px solid #1d9bf0;color:#1d9bf0;font-family:var(--mono);font-size:11px;padding:6px 14px;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px}
+.share-btn:hover{background:rgba(29,155,240,0.1)}
+.feed-section{margin-bottom:24px}
+.feed-card{border:1px solid var(--border);padding:12px 14px;background:var(--surface);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;transition:border-color 0.2s}
+.feed-card:hover{border-color:var(--red)}
+.feed-addr{font-size:12px;color:var(--text)}
+.feed-meta{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.feed-badge{font-family:var(--display);font-size:10px;font-weight:600;padding:2px 6px;background:var(--red-dim);color:var(--red);letter-spacing:1px}
+.feed-time{font-size:10px;color:var(--muted)}
+.feed-loading{font-size:12px;color:var(--muted);text-align:center;padding:20px}
 </style>
 </head>
 <body>
@@ -89,8 +111,15 @@ textarea{resize:vertical;min-height:80px}
 <main>
 <div class="stats-bar">
 <div class="stat"><div class="stat-value" id="statReports">—</div><div class="stat-label">Total Reports</div></div>
-<div class="stat"><div class="stat-value">LIVE</div><div class="stat-label">Contract Status</div></div>
+<div class="stat"><div class="stat-value" id="statFlagged">—</div><div class="stat-label">Addresses Flagged</div></div>
 </div>
+
+<!-- Recent Reports Feed -->
+<div class="feed-section">
+<div class="section-title">Recent Reports</div>
+<div id="recentFeed"><div class="feed-loading">Loading recent reports...</div></div>
+</div>
+
 <div class="tabs">
 <button class="tab active" onclick="switchTab('check',this)">Check Address</button>
 <button class="tab" onclick="switchTab('report',this)">Report Scammer</button>
@@ -112,12 +141,13 @@ textarea{resize:vertical;min-height:80px}
 </div>
 <div class="panel" id="panel-about">
 <div class="section-title">What is FraudWatch</div>
-<p style="font-size:13px;line-height:1.8;color:#aaa;margin-bottom:16px;">FraudWatch is a community-driven, on-chain scam registry deployed on Arc Testnet. Anyone can flag a wallet address involved in fraud, phishing, rug pulls, theft, or scams.</p>
+<p style="font-size:13px;line-height:1.8;color:#aaa;margin-bottom:16px;">FraudWatch is a community-driven, on-chain scam registry deployed on Arc Testnet. Anyone can flag a wallet address involved in fraud, phishing, rug pulls, theft, or scams. Reports live permanently on-chain.</p>
+<p style="font-size:13px;line-height:1.8;color:#aaa;margin-bottom:20px;">Each address gets a Scam Score based on number of reports and community upvotes. The higher the score, the more dangerous the address.</p>
 <div class="section-title" style="margin-top:8px;">Contract Details</div>
 <div style="font-size:11px;color:var(--muted);line-height:2;">
 <div>Network: <span style="color:var(--text)">Arc Testnet (Chain 5042002)</span></div>
 <div>Contract: <span style="color:var(--yellow);word-break:break-all">0x7fda12A4381BF10920624c07f1420323D619E793</span></div>
-<div>Built by: <span style="color:var(--text)">Kebs · from a Redmi on Termux</span></div>
+<div>Built by: <span style="color:var(--text)">Kebs</span></div>
 </div>
 </div>
 </main>
@@ -133,13 +163,175 @@ const CATEGORIES=["SCAM","PHISHING","RUG PULL","THEFT","FRAUD"];
 let provider,signer,contract;
 const roProvider=new ethers.JsonRpcProvider(RPC);
 const readContract=new ethers.Contract(CONTRACT_ADDRESS,ABI,roProvider);
-window.addEventListener('load',loadStats);
-async function loadStats(){try{const c=await readContract.reportCount();document.getElementById('statReports').textContent=c.toString()}catch(e){}}
-async function connectWallet(){if(!window.ethereum){showToast("No wallet found","error");return}try{await window.ethereum.request({method:'eth_requestAccounts'});try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x'+CHAIN_ID.toString(16)}]})}catch(e){if(e.code===4902)await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:'0x'+CHAIN_ID.toString(16),chainName:'Arc Testnet',nativeCurrency:{name:'USDC',symbol:'USDC',decimals:6},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]})}provider=new ethers.BrowserProvider(window.ethereum);signer=await provider.getSigner();contract=new ethers.Contract(CONTRACT_ADDRESS,ABI,signer);const addr=await signer.getAddress();document.getElementById('walletStatus').textContent=addr.slice(0,6)+'...'+addr.slice(-4);document.getElementById('walletStatus').className='wallet-status connected';document.getElementById('connectBtn').textContent='Connected';showToast("Connected","success")}catch(e){showToast("Failed: "+e.message,"error")}}
-function switchTab(name,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+name).classList.add('active');btn.classList.add('active')}
-async function checkAddress(){const addr=document.getElementById('checkAddress').value.trim();const resultDiv=document.getElementById('checkResult');if(!ethers.isAddress(addr)){showToast("Invalid address","error");return}resultDiv.innerHTML='<div style="color:var(--muted);font-size:12px;margin-top:16px;">Checking...</div>';try{const[flagged,count]=await readContract.isFlagged(addr);if(!flagged){resultDiv.innerHTML='<div class="result-box safe"><div class="result-label safe">✓ CLEAN</div><div class="result-meta">No active reports found.</div></div>';return}const ids=await readContract.getReportsByAccused(addr);let html='';for(let id of ids){const r=await readContract.getReport(id);if(!r[6])continue;const date=new Date(Number(r[4])*1000).toLocaleDateString();html+=`<div class="report-card"><div class="report-card-header"><span class="category-badge">${CATEGORIES[Number(r[3])]}</span><span class="upvote-count">▲ ${r[5]} upvotes</span></div><div class="report-evidence">Evidence: ${r[2]}</div><div class="report-time">${date}</div><button class="upvote-btn" onclick="upvoteReport(${id})">▲ Upvote</button></div>`}resultDiv.innerHTML=`<div class="result-box danger"><div class="result-label danger">⚠ FLAGGED</div><div class="result-meta">${count} active report(s)</div></div><div class="report-list">${html}</div>`}catch(e){resultDiv.innerHTML=`<div style="color:var(--red);font-size:12px;margin-top:16px;">Error: ${e.message}</div>`}}
-async function submitReport(){if(!contract){showToast("Connect wallet first","error");return}const addr=document.getElementById('reportAddress').value.trim();const evidence=document.getElementById('reportEvidence').value.trim();const category=parseInt(document.getElementById('reportCategory').value);const resultDiv=document.getElementById('reportResult');const btn=document.getElementById('reportBtn');if(!ethers.isAddress(addr)){showToast("Invalid address","error");return}if(!evidence){showToast("Evidence required","error");return}btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Submitting...';try{const tx=await contract.report(addr,evidence,category);showToast("Waiting for confirmation...","info");await tx.wait();btn.disabled=false;btn.innerHTML='Submit Report';resultDiv.innerHTML=`<div class="result-box safe" style="margin-top:16px;"><div class="result-label safe">✓ REPORTED</div><div class="result-meta">Submitted on-chain.</div><div class="tx-link">TX: <a href="${EXPLORER}/tx/${tx.hash}" target="_blank">${tx.hash}</a></div></div>`;loadStats();showToast("Report submitted!","success")}catch(e){btn.disabled=false;btn.innerHTML='Submit Report';showToast("Error: "+e.message,"error")}}
-async function upvoteReport(id){if(!contract){showToast("Connect wallet to upvote","error");return}try{const tx=await contract.upvote(id);showToast("Upvoting...","info");await tx.wait();showToast("Upvoted!","success");checkAddress()}catch(e){showToast(e.message.includes('Already')?'Already upvoted':'Error','error')}}
+
+function calcScore(reportCount,totalUpvotes){
+  const base=Math.min(reportCount*20,60);
+  const upvoteBonus=Math.min(totalUpvotes*2,40);
+  return Math.min(base+upvoteBonus,100);
+}
+
+function getScoreClass(score){
+  if(score>=70)return'high';
+  if(score>=40)return'medium';
+  return'low';
+}
+
+function getScoreLabel(score){
+  if(score>=70)return'HIGH RISK';
+  if(score>=40)return'MODERATE RISK';
+  return'LOW RISK';
+}
+
+function shortAddr(addr){return addr.slice(0,6)+'...'+addr.slice(-4)}
+
+window.addEventListener('load',async()=>{
+  await loadStats();
+  await loadRecentFeed();
+});
+
+async function loadStats(){
+  try{
+    const count=await readContract.reportCount();
+    document.getElementById('statReports').textContent=count.toString();
+    // Count unique flagged addresses
+    let flagged=new Set();
+    for(let i=0;i<Number(count);i++){
+      const r=await readContract.getReport(i);
+      if(r[6])flagged.add(r[1]);
+    }
+    document.getElementById('statFlagged').textContent=flagged.size;
+  }catch(e){}
+}
+
+async function loadRecentFeed(){
+  const feedDiv=document.getElementById('recentFeed');
+  try{
+    const count=await readContract.reportCount();
+    const total=Number(count);
+    if(total===0){feedDiv.innerHTML='<div class="feed-loading">No reports yet. Be the first to flag a scammer.</div>';return}
+    const start=Math.max(0,total-5);
+    let html='';
+    for(let i=total-1;i>=start;i--){
+      const r=await readContract.getReport(i);
+      if(!r[6])continue;
+      const date=new Date(Number(r[4])*1000).toLocaleDateString();
+      const cat=CATEGORIES[Number(r[3])];
+      html+=`<div class="feed-card" onclick="lookupFromFeed('${r[1]}')">
+        <div class="feed-addr">${shortAddr(r[1])}</div>
+        <div class="feed-meta"><span class="feed-badge">${cat}</span><span class="feed-time">${date}</span></div>
+      </div>`;
+    }
+    feedDiv.innerHTML=html||'<div class="feed-loading">No active reports.</div>';
+  }catch(e){feedDiv.innerHTML='<div class="feed-loading">Could not load feed.</div>'}
+}
+
+function lookupFromFeed(addr){
+  document.getElementById('checkAddress').value=addr;
+  switchTab('check',document.querySelectorAll('.tab')[0]);
+  checkAddress();
+}
+
+async function connectWallet(){
+  if(!window.ethereum){showToast("No wallet found","error");return}
+  try{
+    await window.ethereum.request({method:'eth_requestAccounts'});
+    try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x'+CHAIN_ID.toString(16)}]})}
+    catch(e){if(e.code===4902)await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:'0x'+CHAIN_ID.toString(16),chainName:'Arc Testnet',nativeCurrency:{name:'USDC',symbol:'USDC',decimals:6},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]})}
+    provider=new ethers.BrowserProvider(window.ethereum);
+    signer=await provider.getSigner();
+    contract=new ethers.Contract(CONTRACT_ADDRESS,ABI,signer);
+    const addr=await signer.getAddress();
+    document.getElementById('walletStatus').textContent=shortAddr(addr);
+    document.getElementById('walletStatus').className='wallet-status connected';
+    document.getElementById('connectBtn').textContent='Connected';
+    showToast("Connected","success");
+  }catch(e){showToast("Failed: "+e.message,"error")}
+}
+
+function switchTab(name,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+async function checkAddress(){
+  const addr=document.getElementById('checkAddress').value.trim();
+  const resultDiv=document.getElementById('checkResult');
+  if(!ethers.isAddress(addr)){showToast("Invalid address","error");return}
+  resultDiv.innerHTML='<div style="color:var(--muted);font-size:12px;margin-top:16px;">Checking...</div>';
+  try{
+    const[flagged,count]=await readContract.isFlagged(addr);
+    if(!flagged){
+      resultDiv.innerHTML='<div class="result-box safe"><div class="result-label safe">✓ CLEAN</div><div class="result-meta">No active reports found for this address.</div></div>';
+      return;
+    }
+    const ids=await readContract.getReportsByAccused(addr);
+    let totalUpvotes=0;
+    let activeCount=0;
+    let html='';
+    for(let id of ids){
+      const r=await readContract.getReport(id);
+      if(!r[6])continue;
+      activeCount++;
+      totalUpvotes+=Number(r[5]);
+      const date=new Date(Number(r[4])*1000).toLocaleDateString();
+      html+=`<div class="report-card"><div class="report-card-header"><span class="category-badge">${CATEGORIES[Number(r[3])]}</span><span class="upvote-count">▲ ${r[5]} upvotes</span></div><div class="report-evidence">Evidence: ${r[2]}</div><div class="report-time">${date}</div><button class="upvote-btn" onclick="upvoteReport(${id})">▲ Upvote</button></div>`;
+    }
+    const score=calcScore(activeCount,totalUpvotes);
+    const cls=getScoreClass(score);
+    const lbl=getScoreLabel(score);
+    const tweetText=encodeURIComponent(`⚠️ WARNING: ${addr} has been flagged on FraudWatch (Arc Testnet)\n\nScam Score: ${score}/100 — ${lbl}\n\nCheck any wallet: https://mohammedkibrahim3419-hub.github.io/fraudwatch.html\n\n#ArcTestnet #FraudWatch`);
+    resultDiv.innerHTML=`
+      <div class="result-box danger">
+        <div class="result-label danger">⚠ FLAGGED</div>
+        <div class="result-meta">${activeCount} active report(s)</div>
+      </div>
+      <div class="scam-score">
+        <div class="score-circle ${cls}">${score}</div>
+        <div class="score-info">
+          <div class="score-label ${cls}">${lbl}</div>
+          <div class="score-desc">Based on ${activeCount} report(s) and ${totalUpvotes} community upvote(s)</div>
+          <a href="https://twitter.com/intent/tweet?text=${tweetText}" target="_blank"><button class="share-btn">🐦 Share Warning on X</button></a>
+        </div>
+      </div>
+      <div class="report-list">${html}</div>`;
+  }catch(e){resultDiv.innerHTML=`<div style="color:var(--red);font-size:12px;margin-top:16px;">Error: ${e.message}</div>`}
+}
+
+async function submitReport(){
+  if(!contract){showToast("Connect wallet first","error");return}
+  const addr=document.getElementById('reportAddress').value.trim();
+  const evidence=document.getElementById('reportEvidence').value.trim();
+  const category=parseInt(document.getElementById('reportCategory').value);
+  const resultDiv=document.getElementById('reportResult');
+  const btn=document.getElementById('reportBtn');
+  if(!ethers.isAddress(addr)){showToast("Invalid address","error");return}
+  if(!evidence){showToast("Evidence required","error");return}
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Submitting...';
+  try{
+    const tx=await contract.report(addr,evidence,category);
+    showToast("Waiting for confirmation...","info");
+    await tx.wait();
+    btn.disabled=false;btn.innerHTML='Submit Report';
+    resultDiv.innerHTML=`<div class="result-box safe" style="margin-top:16px;"><div class="result-label safe">✓ REPORTED</div><div class="result-meta">Submitted on-chain.</div><div class="tx-link">TX: <a href="${EXPLORER}/tx/${tx.hash}" target="_blank">${tx.hash}</a></div></div>`;
+    loadStats();
+    loadRecentFeed();
+    showToast("Report submitted!","success");
+  }catch(e){btn.disabled=false;btn.innerHTML='Submit Report';showToast("Error: "+e.message,"error")}
+}
+
+async function upvoteReport(id){
+  if(!contract){showToast("Connect wallet to upvote","error");return}
+  try{
+    const tx=await contract.upvote(id);
+    showToast("Upvoting...","info");
+    await tx.wait();
+    showToast("Upvoted!","success");
+    checkAddress();
+  }catch(e){showToast(e.message.includes('Already')?'Already upvoted':'Error','error')}
+}
+
 let toastTimer;
 function showToast(msg,type='info'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500)}
 </script>
